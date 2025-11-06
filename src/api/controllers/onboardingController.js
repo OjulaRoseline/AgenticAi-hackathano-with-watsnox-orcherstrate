@@ -1,7 +1,10 @@
 const winston = require('winston');
-const { v4: uuidv4 } = require('uuid');
+const Onboarding = require('../../models/Onboarding');
+const Task = require('../../models/Task');
 const watsonxService = require('../../services/watsonxService');
 const workflowEngine = require('../../workflows/engine');
+const emailService = require('../../services/emailService');
+const slackService = require('../../services/slackService');
 
 const logger = winston.createLogger({
   level: 'info',
@@ -33,36 +36,106 @@ exports.createOnboarding = async (req, res) => {
       });
     }
 
-    // Generate employee ID
-    const employeeId = `EMP-${new Date().getFullYear()}-${uuidv4().slice(0, 8).toUpperCase()}`;
+    // Check if onboarding already exists for this email
+    const existingOnboarding = await Onboarding.findOne({ email: email.toLowerCase() });
+    if (existingOnboarding) {
+      return res.status(409).json({
+        error: 'Onboarding already exists for this email'
+      });
+    }
 
-    // Create onboarding record (This would normally save to database)
-    const onboarding = {
-      id: uuidv4(),
+    // Generate employee ID
+    const employeeId = `EMP-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
+
+    // Create onboarding record in database
+    const onboarding = new Onboarding({
       employeeId,
       firstName,
       lastName,
-      email,
+      email: email.toLowerCase(),
       role,
       department,
-      startDate,
+      startDate: new Date(startDate),
       managerId,
       location,
       status: 'pending',
-      createdAt: new Date().toISOString(),
       createdBy: req.user.id
-    };
+    });
+
+    await onboarding.save();
 
     logger.info(`Creating onboarding for ${firstName} ${lastName}`, { employeeId });
 
+    // Create default tasks
+    const defaultTasks = [
+      {
+        onboardingId: onboarding._id,
+        name: 'Complete IT security training',
+        description: 'Complete the mandatory security awareness training',
+        category: 'training',
+        dueDate: new Date(startDate),
+        order: 1
+      },
+      {
+        onboardingId: onboarding._id,
+        name: 'Set up work email',
+        description: 'Access your work email and set up your profile',
+        category: 'technical',
+        dueDate: new Date(startDate),
+        order: 2
+      },
+      {
+        onboardingId: onboarding._id,
+        name: 'Meet with manager',
+        description: 'Initial 1:1 meeting to discuss goals and expectations',
+        category: 'meeting',
+        dueDate: new Date(startDate),
+        order: 3
+      },
+      {
+        onboardingId: onboarding._id,
+        name: 'Team introduction',
+        description: 'Meet your team members',
+        category: 'social',
+        dueDate: new Date(startDate),
+        order: 4
+      }
+    ];
+
+    await Task.insertMany(defaultTasks);
+
+    // Send welcome email
+    await emailService.sendWelcomeEmail({
+      firstName,
+      lastName,
+      email,
+      startDate,
+      role,
+      department
+    });
+
+    // Send Slack welcome message if configured
+    await slackService.sendWelcomeMessage(email, firstName, startDate);
+
     // Trigger watsonx Orchestrate workflow
     const workflowResult = await workflowEngine.triggerWorkflow('create_new_hire', {
-      onboarding
+      onboarding: onboarding.toObject(),
+      employeeId
     });
 
     res.status(201).json({
       message: 'Onboarding created successfully',
-      onboarding,
+      onboarding: {
+        id: onboarding._id,
+        employeeId: onboarding.employeeId,
+        firstName: onboarding.firstName,
+        lastName: onboarding.lastName,
+        email: onboarding.email,
+        role: onboarding.role,
+        department: onboarding.department,
+        startDate: onboarding.startDate,
+        status: onboarding.status
+      },
       workflowId: workflowResult.workflowId
     });
 
@@ -82,26 +155,44 @@ exports.getOnboarding = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // TODO: Fetch from database
-    const onboarding = {
-      id,
-      employeeId: 'EMP-2024-ABC123',
-      firstName: 'John',
-      lastName: 'Doe',
-      email: 'john.doe@company.com',
-      role: 'Software Engineer',
-      department: 'Engineering',
-      status: 'in_progress',
-      progress: 65,
-      startDate: '2024-11-15',
-      tasks: [
-        { id: 1, name: 'Complete IT security training', status: 'completed', dueDate: '2024-11-15' },
-        { id: 2, name: 'Set up development environment', status: 'in_progress', dueDate: '2024-11-15' },
-        { id: 3, name: 'Meet with manager', status: 'pending', dueDate: '2024-11-15' }
-      ]
-    };
+    // Fetch from database
+    const onboarding = await Onboarding.findById(id);
+    
+    if (!onboarding) {
+      return res.status(404).json({ error: 'Onboarding not found' });
+    }
 
-    res.json(onboarding);
+    // Fetch associated tasks
+    const tasks = await Task.find({ onboardingId: id }).sort({ order: 1 });
+
+    // Calculate progress
+    const completedTasks = tasks.filter(t => t.status === 'completed').length;
+    const progress = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0;
+
+    res.json({
+      id: onboarding._id,
+      employeeId: onboarding.employeeId,
+      firstName: onboarding.firstName,
+      lastName: onboarding.lastName,
+      email: onboarding.email,
+      role: onboarding.role,
+      department: onboarding.department,
+      status: onboarding.status,
+      progress,
+      startDate: onboarding.startDate,
+      location: onboarding.location,
+      accounts: onboarding.accounts,
+      equipment: onboarding.equipment,
+      tasks: tasks.map(t => ({
+        id: t._id,
+        name: t.name,
+        description: t.description,
+        status: t.status,
+        category: t.category,
+        dueDate: t.dueDate,
+        completedAt: t.completedAt
+      }))
+    });
 
   } catch (error) {
     logger.error('Error fetching onboarding:', error);
@@ -114,35 +205,51 @@ exports.getOnboarding = async (req, res) => {
  */
 exports.getAllOnboardings = async (req, res) => {
   try {
-    const { status, department, startDate } = req.query;
+    const { status, department, startDate, limit = 50, offset = 0 } = req.query;
 
-    // TODO: Fetch from database with filters
-    const onboardings = [
-      {
-        id: '1',
-        employeeId: 'EMP-2024-001',
-        name: 'John Doe',
-        role: 'Software Engineer',
-        department: 'Engineering',
-        status: 'in_progress',
-        progress: 65,
-        startDate: '2024-11-15'
-      },
-      {
-        id: '2',
-        employeeId: 'EMP-2024-002',
-        name: 'Jane Smith',
-        role: 'Product Manager',
-        department: 'Product',
-        status: 'completed',
-        progress: 100,
-        startDate: '2024-11-01'
-      }
-    ];
+    // Build filter query
+    const filter = {};
+    if (status) filter.status = status;
+    if (department) filter.department = department;
+    if (startDate) filter.startDate = { $gte: new Date(startDate) };
+
+    // Fetch from database with filters
+    const onboardings = await Onboarding
+      .find(filter)
+      .sort({ startDate: -1 })
+      .limit(parseInt(limit))
+      .skip(parseInt(offset));
+
+    const total = await Onboarding.countDocuments(filter);
+
+    // Calculate progress for each
+    const onboardingsWithProgress = await Promise.all(
+      onboardings.map(async (onb) => {
+        const tasks = await Task.find({ onboardingId: onb._id });
+        const completedTasks = tasks.filter(t => t.status === 'completed').length;
+        const progress = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0;
+
+        return {
+          id: onb._id,
+          employeeId: onb.employeeId,
+          name: `${onb.firstName} ${onb.lastName}`,
+          firstName: onb.firstName,
+          lastName: onb.lastName,
+          email: onb.email,
+          role: onb.role,
+          department: onb.department,
+          status: onb.status,
+          progress,
+          startDate: onb.startDate,
+          createdAt: onb.createdAt
+        };
+      })
+    );
 
     res.json({
-      count: onboardings.length,
-      onboardings
+      count: onboardingsWithProgress.length,
+      total,
+      onboardings: onboardingsWithProgress
     });
 
   } catch (error) {
@@ -163,13 +270,23 @@ exports.updateStatus = async (req, res) => {
       return res.status(400).json({ error: 'Invalid status' });
     }
 
-    // TODO: Update in database
+    // Update in database
+    const onboarding = await Onboarding.findByIdAndUpdate(
+      id,
+      { status, updatedAt: new Date() },
+      { new: true }
+    );
+
+    if (!onboarding) {
+      return res.status(404).json({ error: 'Onboarding not found' });
+    }
+
     logger.info(`Updating onboarding ${id} status to ${status}`);
 
     res.json({
       message: 'Status updated successfully',
-      id,
-      status
+      id: onboarding._id,
+      status: onboarding.status
     });
 
   } catch (error) {
@@ -185,36 +302,29 @@ exports.getTasks = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // TODO: Fetch from database
-    const tasks = [
-      {
-        id: 1,
-        name: 'Complete IT security training',
-        description: 'Complete the mandatory security awareness training',
-        status: 'completed',
-        dueDate: '2024-11-15',
-        category: 'training',
-        completedAt: '2024-11-15T10:30:00Z'
-      },
-      {
-        id: 2,
-        name: 'Set up development environment',
-        description: 'Install required software and tools',
-        status: 'in_progress',
-        dueDate: '2024-11-15',
-        category: 'technical'
-      },
-      {
-        id: 3,
-        name: 'Meet with manager',
-        description: 'Initial 1:1 meeting to discuss goals and expectations',
-        status: 'pending',
-        dueDate: '2024-11-15',
-        category: 'meeting'
-      }
-    ];
+    // Check if onboarding exists
+    const onboarding = await Onboarding.findById(id);
+    if (!onboarding) {
+      return res.status(404).json({ error: 'Onboarding not found' });
+    }
 
-    res.json({ tasks });
+    // Fetch tasks from database
+    const tasks = await Task.find({ onboardingId: id }).sort({ order: 1, dueDate: 1 });
+
+    res.json({
+      tasks: tasks.map(t => ({
+        id: t._id,
+        name: t.name,
+        description: t.description,
+        status: t.status,
+        priority: t.priority,
+        dueDate: t.dueDate,
+        category: t.category,
+        completedAt: t.completedAt,
+        notes: t.notes,
+        order: t.order
+      }))
+    });
 
   } catch (error) {
     logger.error('Error fetching tasks:', error);
@@ -232,18 +342,35 @@ exports.updateTask = async (req, res) => {
 
     logger.info(`Updating task ${taskId} for onboarding ${id}`, { status, notes });
 
-    // TODO: Update in database
+    // Update task in database
+    const updateData = { status, updatedAt: new Date() };
+    if (notes) updateData.notes = notes;
+    if (status === 'completed') updateData.completedAt = new Date();
 
-    // If task completed, check if all tasks are done and update onboarding status
-    if (status === 'completed') {
-      // Trigger workflow to check progress
-      await workflowEngine.triggerWorkflow('check_onboarding_progress', { onboardingId: id });
+    const task = await Task.findByIdAndUpdate(taskId, updateData, { new: true });
+
+    if (!task) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    // Update onboarding progress
+    const allTasks = await Task.find({ onboardingId: id });
+    const completedTasks = allTasks.filter(t => t.status === 'completed').length;
+    const progress = Math.round((completedTasks / allTasks.length) * 100);
+
+    await Onboarding.findByIdAndUpdate(id, { progress });
+
+    // If all tasks completed, mark onboarding as completed
+    if (progress === 100) {
+      await Onboarding.findByIdAndUpdate(id, { status: 'completed' });
+      logger.info(`Onboarding ${id} completed - all tasks done!`);
     }
 
     res.json({
       message: 'Task updated successfully',
-      taskId,
-      status
+      taskId: task._id,
+      status: task.status,
+      progress
     });
 
   } catch (error) {

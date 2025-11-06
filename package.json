@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/api/server.js",
     "dev": "nodemon src/api/server.js",
+    "seed": "node scripts/seed.js",
     "test": "jest",
     "lint": "eslint src/",
     "format": "prettier --write \"src/**/*.{js,jsx,json,css,md}\"",

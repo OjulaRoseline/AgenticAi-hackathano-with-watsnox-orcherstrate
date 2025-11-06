@@ -1,4 +1,7 @@
 const winston = require('winston');
+const ChatMessage = require('../../models/ChatMessage');
+const Onboarding = require('../../models/Onboarding');
+const Task = require('../../models/Task');
 const watsonxService = require('../../services/watsonxService');
 
 const logger = winston.createLogger({
@@ -45,13 +48,21 @@ exports.sendMessage = async (req, res) => {
         response = await watsonxService.generateResponse(message, employeeId);
     }
 
-    // Save to chat history
-    // TODO: Save to database
+    // Save to chat history in database
+    const chatMessage = new ChatMessage({
+      employeeId,
+      message,
+      response,
+      intent
+    });
+
+    await chatMessage.save();
 
     res.json({
+      messageId: chatMessage._id,
       message: response,
       intent,
-      timestamp: new Date().toISOString()
+      timestamp: chatMessage.createdAt
     });
 
   } catch (error) {
@@ -71,29 +82,27 @@ exports.getHistory = async (req, res) => {
     const { employeeId } = req.params;
     const { limit = 50, offset = 0 } = req.query;
 
-    // TODO: Fetch from database
-    const history = [
-      {
-        id: 1,
-        employeeId,
-        message: 'When is my first day?',
-        response: 'Your first day is November 15, 2024. We\'re excited to have you!',
-        intent: 'question_about_schedule',
-        timestamp: '2024-11-10T14:30:00Z'
-      },
-      {
-        id: 2,
-        employeeId,
-        message: 'What equipment will I receive?',
-        response: 'You\'ll receive a MacBook Pro 16", dual 27" monitors, keyboard, mouse, and headset. Everything will be set up at your desk before you arrive.',
-        intent: 'question_about_equipment',
-        timestamp: '2024-11-10T14:32:00Z'
-      }
-    ];
+    // Fetch from database
+    const history = await ChatMessage
+      .find({ employeeId })
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip(parseInt(offset));
+
+    const total = await ChatMessage.countDocuments({ employeeId });
 
     res.json({
       count: history.length,
-      history
+      total,
+      history: history.map(h => ({
+        id: h._id,
+        employeeId: h.employeeId,
+        message: h.message,
+        response: h.response,
+        intent: h.intent,
+        helpful: h.helpful,
+        timestamp: h.createdAt
+      }))
     });
 
   } catch (error) {
@@ -135,7 +144,16 @@ exports.provideFeedback = async (req, res) => {
 
     logger.info(`Feedback received for message ${messageId}: ${helpful ? 'helpful' : 'not helpful'}`);
 
-    // TODO: Save feedback to database for model improvement
+    // Save feedback to database
+    const chatMessage = await ChatMessage.findByIdAndUpdate(
+      messageId,
+      { helpful },
+      { new: true }
+    );
+
+    if (!chatMessage) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
 
     res.json({
       message: 'Thank you for your feedback!',
@@ -152,13 +170,44 @@ exports.provideFeedback = async (req, res) => {
 // Helper functions
 
 async function handleScheduleQuestion(employeeId, question) {
-  // TODO: Query schedule from database
-  return "Your schedule for today includes:\n• 9:00 AM - IT Setup\n• 11:00 AM - Team Introduction\n• 2:00 PM - HR Benefits Overview";
+  // Query tasks scheduled for today
+  const onboarding = await Onboarding.findOne({ employeeId });
+  if (!onboarding) {
+    return "I couldn't find your onboarding information. Please contact HR for assistance.";
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const tasks = await Task.find({
+    onboardingId: onboarding._id,
+    dueDate: { $gte: today, $lt: tomorrow },
+    status: { $ne: 'completed' }
+  }).sort({ order: 1 });
+
+  if (tasks.length === 0) {
+    return "You have no scheduled tasks for today. Enjoy your day!";
+  }
+
+  const taskList = tasks.map(t => `• ${t.name}`).join('\n');
+  return `Your schedule for today includes:\n${taskList}`;
 }
 
 async function handleEquipmentQuestion(employeeId, question) {
-  // TODO: Query equipment status from ServiceNow
-  return "Your equipment is ready! You'll receive:\n• MacBook Pro 16\"\n• Dual 27\" monitors\n• Wireless keyboard and mouse\n• Noise-canceling headset\n\nEverything will be at your desk on your first day.";
+  const onboarding = await Onboarding.findOne({ employeeId });
+  if (!onboarding) {
+    return "I couldn't find your equipment information. Please contact IT support.";
+  }
+
+  if (onboarding.equipment.delivered) {
+    return "Your equipment has been delivered and should be at your desk!";
+  } else if (onboarding.equipment.requested) {
+    return `Your equipment has been requested (Ticket: ${onboarding.equipment.ticketId}). It will be ready before your first day.`;
+  } else {
+    return "Your equipment will be requested soon. You'll receive an update within 24 hours.";
+  }
 }
 
 async function handleBenefitsQuestion(employeeId, question) {

@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
 const winston = require('winston');
+const User = require('../../models/User');
 
 const logger = winston.createLogger({
   level: 'info',
@@ -24,18 +24,19 @@ exports.login = async (req, res) => {
       });
     }
 
-    // TODO: Fetch user from database
-    // For demo purposes, using mock user
-    const user = {
-      id: '1',
-      email: 'admin@company.com',
-      name: 'Admin User',
-      role: 'hr_admin',
-      passwordHash: await bcrypt.hash('password123', 10) // Demo only!
-    };
+    // Find user in database
+    const user = await User.findOne({ email: email.toLowerCase() });
+    
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
 
-    // Verify password
-    const isValidPassword = await bcrypt.compare(password, user.passwordHash);
+    if (!user.isActive) {
+      return res.status(401).json({ error: 'Account is disabled' });
+    }
+
+    // Verify password using model method
+    const isValidPassword = await user.comparePassword(password);
     if (!isValidPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
@@ -43,7 +44,7 @@ exports.login = async (req, res) => {
     // Generate JWT token
     const token = jwt.sign(
       {
-        id: user.id,
+        id: user._id.toString(),
         email: user.email,
         role: user.role
       },
@@ -57,10 +58,11 @@ exports.login = async (req, res) => {
       message: 'Login successful',
       token,
       user: {
-        id: user.id,
+        id: user._id,
         email: user.email,
         name: user.name,
-        role: user.role
+        role: user.role,
+        department: user.department
       }
     });
 
@@ -75,7 +77,7 @@ exports.login = async (req, res) => {
  */
 exports.register = async (req, res) => {
   try {
-    const { email, password, name, role } = req.body;
+    const { email, password, name, role, department } = req.body;
 
     if (!email || !password || !name) {
       return res.status(400).json({
@@ -83,29 +85,38 @@ exports.register = async (req, res) => {
       });
     }
 
+    // Validate password length
+    if (password.length < 6) {
+      return res.status(400).json({
+        error: 'Password must be at least 6 characters long'
+      });
+    }
+
     // Check if user already exists
-    // TODO: Check database
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      return res.status(409).json({
+        error: 'User with this email already exists'
+      });
+    }
 
-    // Hash password
-    const passwordHash = await bcrypt.hash(password, 10);
-
-    // Create user
-    // TODO: Save to database
-    const user = {
-      id: Date.now().toString(),
-      email,
+    // Create new user
+    const user = new User({
+      email: email.toLowerCase(),
+      password, // Will be hashed by pre-save hook
       name,
       role: role || 'employee',
-      passwordHash,
-      createdAt: new Date().toISOString()
-    };
+      department
+    });
+
+    await user.save();
 
     logger.info(`New user registered: ${email}`);
 
     // Generate token
     const token = jwt.sign(
       {
-        id: user.id,
+        id: user._id.toString(),
         email: user.email,
         role: user.role
       },
@@ -117,10 +128,11 @@ exports.register = async (req, res) => {
       message: 'Registration successful',
       token,
       user: {
-        id: user.id,
+        id: user._id,
         email: user.email,
         name: user.name,
-        role: user.role
+        role: user.role,
+        department: user.department
       }
     });
 

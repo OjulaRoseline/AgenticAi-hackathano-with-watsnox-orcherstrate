@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const winston = require('winston');
+const connectDatabase = require('../config/database');
 
 // Import routes
 const onboardingRoutes = require('./routes/onboarding');
@@ -12,6 +13,9 @@ const webhookRoutes = require('./routes/webhooks');
 // Initialize Express app
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Connect to database
+connectDatabase();
 
 // Configure Winston logger
 const logger = winston.createLogger({
