@@ -142,6 +142,20 @@ export default function Dashboard({ user }) {
             📊 Generate Handoff Report
           </button>
         </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <button 
+            onClick={() => navigate('/meetings')}
+            className="btn-secondary text-left justify-start"
+          >
+            📅 Schedule Board Meeting
+          </button>
+          <button 
+            onClick={() => navigate('/alerts')}
+            className="btn-secondary text-left justify-start"
+          >
+            🚨 View All Alerts
+          </button>
+        </div>
       </div>
 
       {/* System Status */}

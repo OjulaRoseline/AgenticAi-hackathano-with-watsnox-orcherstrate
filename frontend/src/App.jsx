@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import AIChat from './pages/AIChat';
 import Patients from './pages/Patients';
 import Alerts from './pages/Alerts';
+import MeetingScheduler from './pages/MeetingScheduler';
 import Layout from './components/Layout';
 
 function App() {
@@ -67,6 +68,7 @@ function App() {
           <Route path="chat" element={<AIChat user={user} />} />
           <Route path="patients" element={<Patients user={user} />} />
           <Route path="alerts" element={<Alerts user={user} />} />
+          <Route path="meetings" element={<MeetingScheduler user={user} />} />
         </Route>
       </Routes>
     </Router>

@@ -1,5 +1,6 @@
-import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Home, MessageSquare, Users, Bell, LogOut, Activity } from 'lucide-react';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { Home, MessageSquare, Users, Bell, Calendar, LogOut, Menu, X, Activity } from 'lucide-react';
 
 export default function Layout({ user, onLogout }) {
   const location = useLocation();
@@ -11,6 +12,7 @@ export default function Layout({ user, onLogout }) {
     { path: '/chat', icon: MessageSquare, label: 'AI Chat' },
     { path: '/patients', icon: Users, label: 'Patients' },
     { path: '/alerts', icon: Bell, label: 'Alerts' },
+    { path: '/meetings', icon: Calendar, label: 'Meetings' },
   ];
 
   return (

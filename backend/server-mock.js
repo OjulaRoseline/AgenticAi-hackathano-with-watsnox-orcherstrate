@@ -295,6 +295,34 @@ app.post('/api/agents/query', (req, res) => {
         });
     }
     
+    // Meeting scheduling
+    if (lowerQuery.includes('meeting') || lowerQuery.includes('schedule') || lowerQuery.includes('board')) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        
+        return res.json({
+            success: true,
+            agent: 'meeting_coordinator_agent',
+            intent: { intent: 'schedule_meeting', confidence: 0.95 },
+            data: {
+                suggestedDate: tomorrow.toISOString().split('T')[0],
+                suggestedTime: '14:00',
+                criticalCases: [
+                    { patient: 'Sarah Smith', room: '102', alertCount: 1, issue: 'Elevated BP requiring monitoring' },
+                    { patient: 'John Doe', room: '101', alertCount: 1, issue: 'Medication schedule adjustment needed' }
+                ],
+                recommendedAgenda: [
+                    'Review critical patient alerts and status updates',
+                    'Discuss medication schedules and adjustments',
+                    'Plan discharge procedures for stable patients',
+                    'Staff coordination and shift handoff improvements'
+                ],
+                availableRooms: ['Conference Room A', 'Conference Room B', 'Board Room'],
+                optimalAttendees: ['Nurse Manager', 'Dr. Martinez', 'Charge Nurse', 'Department Head']
+            }
+        });
+    }
+    
     // Default response
     res.json({
         success: true,
