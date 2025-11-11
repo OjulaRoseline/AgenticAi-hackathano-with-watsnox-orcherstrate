@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { getPatients, getAlerts } from '../services/api';
+import { useNavigate } from 'react-router-dom';
+import { getPatients, getAlerts, queryAgent } from '../services/api';
 import { Users, Bell, Activity, TrendingUp } from 'lucide-react';
 
 export default function Dashboard({ user }) {
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalPatients: 0,
     criticalAlerts: 0,
@@ -34,6 +36,15 @@ export default function Dashboard({ user }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGenerateHandoff = async () => {
+    // Navigate to AI Chat with the handoff query pre-filled
+    navigate('/ai-chat', { 
+      state: { 
+        autoQuery: 'Generate shift handoff report'
+      } 
+    });
   };
 
   const statCards = [
@@ -112,13 +123,22 @@ export default function Dashboard({ user }) {
       <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
         <h2 className="text-xl font-semibold text-white mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button className="btn-primary text-left justify-start">
+          <button 
+            onClick={() => navigate('/ai-chat')}
+            className="btn-primary text-left justify-start"
+          >
             🤖 Ask AI Agent
           </button>
-          <button className="btn-secondary text-left justify-start">
+          <button 
+            onClick={() => navigate('/patients')}
+            className="btn-secondary text-left justify-start"
+          >
             👥 View All Patients
           </button>
-          <button className="btn-secondary text-left justify-start">
+          <button 
+            onClick={handleGenerateHandoff}
+            className="btn-secondary text-left justify-start"
+          >
             📊 Generate Handoff Report
           </button>
         </div>

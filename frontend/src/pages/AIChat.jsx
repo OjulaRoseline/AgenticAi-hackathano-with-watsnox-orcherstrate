@@ -1,26 +1,16 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { queryAgent } from '../services/api';
-import { Send, Loader, Mic, MicOff, Bot, User } from 'lucide-react';
+import { Send, Bot, User } from 'lucide-react';
 
 export default function AIChat({ user }) {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: `Hello ${user.firstName}! I'm your AI assistant powered by IBM watsonx Orchestrate. I can help you with:\n\n• Patient vital signs retrieval\n• Searching for patients\n• Scheduling board meetings\n• Generating shift handoff reports\n• Checking critical alerts\n\nWhat can I help you with today?`
+      content: `Hello ${user?.firstName || 'User'}! I'm your AI assistant powered by IBM watsonx Orchestrate. I can help you with:\n\n• Patient vital signs retrieval\n• Searching for patients\n• Generating shift handoff reports\n• Checking critical alerts\n\nWhat can I help you with today?`
     }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const messagesEndRef = useRef(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
 
   const handleSendMessage = async () => {
     if (!input.trim() || loading) return;
@@ -37,15 +27,11 @@ export default function AIChat({ user }) {
     try {
       const response = await queryAgent(userMessage.content);
       const { agent, intent, data } = response.data;
-
+      
       let assistantMessage = '';
 
-      // Format response based on agent action
       if (data) {
-        if (data.found === false) {
-          assistantMessage = data.message || 'No results found.';
-        } else if (data.vitals) {
-          // Patient vitals response
+        if (data.vitals) {
           const { patient, vitals, cached } = data;
           assistantMessage = `**${patient.name}** - ${patient.department}, Room ${patient.room}\n\n` +
             `📊 **Latest Vitals:**\n` +
@@ -56,7 +42,6 @@ export default function AIChat({ user }) {
             `• Blood Glucose: ${vitals.bloodGlucose}\n\n` +
             `${cached ? '⚡ Retrieved from cache (50ms)' : '💾 Cached for quick access'}`;
         } else if (data.patients) {
-          // Patient search response
           assistantMessage = `Found **${data.count}** patients:\n\n`;
           data.patients.slice(0, 5).forEach(p => {
             assistantMessage += `• **${p.name}** - Room ${p.room}, ${p.department}\n`;
@@ -69,8 +54,7 @@ export default function AIChat({ user }) {
           }
           assistantMessage += `\n\n${data.cached ? '⚡ Retrieved from cache' : ''}`;
         } else if (data.alerts) {
-          // Alerts response
-          assistantMessage = `**${data.count}** unread alerts:\n\n`;
+          assistantMessage = `**${data.count}** alerts:\n\n`;
           data.alerts.slice(0, 5).forEach(a => {
             const emoji = a.severity === 'critical' ? '🚨' : 
                          a.severity === 'high' ? '⚠️' : 'ℹ️';
@@ -79,25 +63,22 @@ export default function AIChat({ user }) {
             assistantMessage += `   ${a.message}\n\n`;
           });
         } else if (data.shiftSummary) {
-          // Handoff report response
           assistantMessage = `**Shift Handoff Report**\n\n`;
           assistantMessage += `${data.shiftSummary}\n\n`;
           assistantMessage += `**Summary:**\n`;
           assistantMessage += `• Total Patients: ${data.patientCount}\n`;
           assistantMessage += `• Vitals Checked: ${data.patients.reduce((sum, p) => sum + p.vitalsChecked, 0)}\n`;
           assistantMessage += `• Medications Given: ${data.patients.reduce((sum, p) => sum + p.medicationsGiven, 0)}\n`;
-        } else if (data.suggestedTime) {
-          // Meeting coordination response
-          assistantMessage = `I can schedule a board meeting for you:\n\n`;
-          assistantMessage += `📅 **Suggested:** ${data.suggestedDate} at ${data.suggestedTime}\n\n`;
-          if (data.criticalCases && data.criticalCases.length > 0) {
-            assistantMessage += `**Critical cases to discuss:**\n`;
-            data.criticalCases.forEach(c => {
-              assistantMessage += `• ${c.patient} (Room ${c.room}) - ${c.alertCount} alerts\n`;
+        } else if (data.message) {
+          assistantMessage = data.message;
+          if (data.suggestions && data.suggestions.length > 0) {
+            assistantMessage += '\n\nTry asking:\n';
+            data.suggestions.forEach(s => {
+              assistantMessage += `• ${s}\n`;
             });
           }
         }
-      } else if (intent.intent === 'unknown') {
+      } else if (intent && intent.intent === 'unknown') {
         assistantMessage = "I'm not sure how to help with that. Try asking about:\n" +
           "• Patient vitals (e.g., 'Show me John Doe's vitals')\n" +
           "• Patient search (e.g., 'Find diabetic patients in ICU')\n" +
@@ -109,10 +90,9 @@ export default function AIChat({ user }) {
         role: 'assistant',
         content: assistantMessage,
         agent,
-        intent: intent.intent,
-        confidence: intent.confidence
+        intent: intent?.intent,
+        confidence: intent?.confidence
       }]);
-
     } catch (error) {
       console.error('Error querying agent:', error);
       setMessages(prev => [...prev, {
@@ -124,40 +104,9 @@ export default function AIChat({ user }) {
     }
   };
 
-  const handleVoiceInput = () => {
-    if (!('webkitSpeechRecognition' in window)) {
-      alert('Voice input not supported in your browser');
-      return;
-    }
-
-    const recognition = new webkitSpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-
-    recognition.onstart = () => {
-      setIsListening(true);
-    };
-
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      setInput(transcript);
-      setIsListening(false);
-    };
-
-    recognition.onerror = () => {
-      setIsListening(false);
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    recognition.start();
-  };
-
   const quickActions = [
     "Show me patient John Doe's vitals",
-    "Find diabetic patients in ICU",
+    "Find diabetic patients in ICU", 
     "Show critical alerts",
     "Generate shift handoff report"
   ];
@@ -215,11 +164,10 @@ export default function AIChat({ user }) {
               <Bot className="w-5 h-5 text-white" />
             </div>
             <div className="bg-gray-700 rounded-lg px-4 py-3">
-              <Loader className="w-5 h-5 animate-spin text-gray-400" />
+              <div className="text-gray-400">Thinking...</div>
             </div>
           </div>
         )}
-        <div ref={messagesEndRef} />
       </div>
 
       {/* Quick Actions */}
@@ -237,21 +185,6 @@ export default function AIChat({ user }) {
 
       {/* Input Area */}
       <div className="mt-4 flex items-center space-x-3">
-        <button
-          onClick={handleVoiceInput}
-          className={`p-3 rounded-lg transition-colors ${
-            isListening 
-              ? 'bg-red-600 hover:bg-red-700' 
-              : 'bg-gray-700 hover:bg-gray-600'
-          }`}
-          title={isListening ? 'Listening...' : 'Voice input'}
-        >
-          {isListening ? (
-            <MicOff className="w-5 h-5 text-white" />
-          ) : (
-            <Mic className="w-5 h-5 text-gray-300" />
-          )}
-        </button>
         <input
           type="text"
           value={input}

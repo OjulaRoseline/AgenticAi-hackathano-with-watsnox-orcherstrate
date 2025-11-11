@@ -63,6 +63,7 @@ function App() {
         }>
           <Route index element={<Navigate to="/dashboard" />} />
           <Route path="dashboard" element={<Dashboard user={user} />} />
+          <Route path="ai-chat" element={<AIChat user={user} />} />
           <Route path="chat" element={<AIChat user={user} />} />
           <Route path="patients" element={<Patients user={user} />} />
           <Route path="alerts" element={<Alerts user={user} />} />
