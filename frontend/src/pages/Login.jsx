@@ -22,6 +22,25 @@ export default function Login({ onLogin }) {
       onLogin(token, user);
       navigate('/dashboard');
     } catch (err) {
+      console.error('Login error:', err);
+      
+      // DEMO MODE: Auto-login if backend is unreachable
+      if (!err.response || err.message.includes('Network Error')) {
+        console.log('🎬 DEMO MODE: Using mock login');
+        const mockToken = 'demo-token-' + Date.now();
+        const mockUser = {
+          id: '1',
+          email: email,
+          firstName: 'Alice',
+          lastName: 'Johnson',
+          role: 'nurse',
+          department: 'ICU'
+        };
+        onLogin(mockToken, mockUser);
+        navigate('/dashboard');
+        return;
+      }
+      
       setError(err.response?.data?.error || 'Login failed. Please try again.');
     } finally {
       setLoading(false);

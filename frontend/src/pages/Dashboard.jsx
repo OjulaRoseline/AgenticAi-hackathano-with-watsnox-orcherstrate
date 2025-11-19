@@ -33,6 +33,14 @@ export default function Dashboard({ user }) {
       });
     } catch (error) {
       console.error('Error loading dashboard data:', error);
+      
+      // DEMO MODE: Use mock data if backend is unreachable
+      console.log('🎬 DEMO MODE: Using mock dashboard data');
+      setStats({
+        totalPatients: 3,
+        criticalAlerts: 2,
+        activePatients: 3
+      });
     } finally {
       setLoading(false);
     }
@@ -91,10 +99,10 @@ export default function Dashboard({ user }) {
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-white">
-          Welcome back, {user.firstName}!
+          Welcome back, {user?.firstName || 'Nurse'}!
         </h1>
         <p className="text-gray-400 mt-1">
-          Here's what's happening in {user.department} today
+          Here's what's happening in {user?.department || 'your department'} today
         </p>
       </div>
 

@@ -104,6 +104,7 @@ export default function AIChat({ user }) {
     }
   };
 
+
   const quickActions = [
     "Show me patient John Doe's vitals",
     "Find diabetic patients in ICU", 
