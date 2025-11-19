@@ -221,7 +221,7 @@ WATSONX_ORCHESTRATE_URL=your_orchestrate_url
 
 # AI Services
 ELEVENLABS_API_KEY=sk_your_elevenlabs_key
-ELEVENLABS_VOICE_ID=21m00Tcm4TlvDq8ikWAM
+
 
 # Security
 JWT_SECRET=your_super_secret_jwt_key_change_this
@@ -254,9 +254,8 @@ npm run dev
 ```
 1. Register as a nurse: http://localhost:5173/register
 2. Login to dashboard
-3. Try voice command: "Show me active patients"
-4. Test meeting scheduler: "Schedule board meeting for tomorrow 2pm"
-5. View real-time alerts on dashboard
+3. Test meeting scheduler: "Schedule board meeting for tomorrow 2pm"
+4. View real-time alerts on dashboard
 ```
 
 ---
@@ -337,7 +336,7 @@ npm run dev
 ### **AI & Orchestration**
 - IBM watsonx Orchestrate (multi-agent coordination)
 - IBM watsonx.ai (NLP, summarization, predictions)
-- ElevenLabs (voice TTS/STT)
+- ElevenLabs ( TTS/TTS)
 - Custom NLP pipeline for medical terminology
 
 ### **Frontend**
