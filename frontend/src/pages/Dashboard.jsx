@@ -96,16 +96,6 @@ export default function Dashboard({ user }) {
 
   return (
     <div className="space-y-6">
-      {/* Demo Mode Banner */}
-      <div className="bg-blue-500/10 border border-blue-500 text-blue-400 p-4 rounded-lg flex items-center">
-        <span className="text-2xl mr-3">🎯</span>
-        <div>
-          <strong className="font-semibold">DEMO MODE</strong>
-          <span className="mx-2">•</span>
-          <span>Using mock data for demonstration (no database required)</span>
-        </div>
-      </div>
-
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-white">

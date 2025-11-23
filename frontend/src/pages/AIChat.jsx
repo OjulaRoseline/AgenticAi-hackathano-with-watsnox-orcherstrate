@@ -114,16 +114,6 @@ export default function AIChat({ user }) {
 
   return (
     <div className="h-[calc(100vh-8rem)] flex flex-col">
-      {/* Demo Mode Banner */}
-      <div className="bg-blue-500/10 border border-blue-500 text-blue-400 p-3 rounded-lg mb-4 flex items-center text-sm">
-        <span className="text-lg mr-2">🎯</span>
-        <div>
-          <strong className="font-semibold">DEMO MODE</strong>
-          <span className="mx-2">•</span>
-          <span>Using mock AI responses for demonstration</span>
-        </div>
-      </div>
-
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-white flex items-center">
@@ -153,8 +143,8 @@ export default function AIChat({ user }) {
             </div>
             <div className={`flex-1 ${message.role === 'user' ? 'text-right' : ''}`}>
               <div className={`inline-block max-w-3xl ${message.role === 'user'
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-gray-700 text-gray-100'
+                ? 'bg-primary-600 text-white'
+                : 'bg-gray-700 text-gray-100'
                 } rounded-lg px-4 py-3 whitespace-pre-wrap`}>
                 {message.content}
               </div>
