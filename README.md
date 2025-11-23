@@ -395,6 +395,6 @@ MIT License - see LICENSE file
 
 **Made with cutting-edge AI to solve real healthcare problems**
 
-[Get Started](#-quick-start) • [Read Docs](#-documentation) • [Watch Demo](#-demo)
+[Get Started](#-quick-start) • [Read Docs](#-documentation) 
 
 </div>
