@@ -32,30 +32,30 @@ app.get('/health', (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { email, password } = req.body;
-        
+
         const nurse = mockNurses.find(n => n.email === email);
-        
+
         if (!nurse) {
             return res.status(401).json({ success: false, error: 'Invalid credentials' });
         }
-        
+
         const isValid = await bcrypt.compare(password, nurse.password_hash);
-        
+
         if (!isValid) {
             return res.status(401).json({ success: false, error: 'Invalid credentials' });
         }
-        
+
         const token = jwt.sign(
             { id: nurse.id, email: nurse.email, role: nurse.role },
             process.env.JWT_SECRET || 'mediflow-secret',
             { expiresIn: '24h' }
         );
-        
+
         const sessionId = Date.now().toString();
         sessions.set(sessionId, { nurseId: nurse.id, email: nurse.email });
-        
+
         console.log(`✅ Login successful: ${email}`);
-        
+
         res.json({
             success: true,
             message: 'Login successful',
@@ -78,11 +78,11 @@ app.post('/api/auth/login', async (req, res) => {
 
 app.post('/api/auth/register', async (req, res) => {
     const { email, password, firstName, lastName, department } = req.body;
-    
+
     if (mockNurses.find(n => n.email === email)) {
         return res.status(400).json({ success: false, error: 'Email already registered' });
     }
-    
+
     const passwordHash = await bcrypt.hash(password, 10);
     const newNurse = {
         id: (mockNurses.length + 1).toString(),
@@ -94,17 +94,17 @@ app.post('/api/auth/register', async (req, res) => {
         department,
         is_active: true
     };
-    
+
     mockNurses.push(newNurse);
-    
+
     const token = jwt.sign(
         { id: newNurse.id, email: newNurse.email },
         process.env.JWT_SECRET || 'mediflow-secret',
         { expiresIn: '24h' }
     );
-    
+
     console.log(`✅ New nurse registered: ${email}`);
-    
+
     res.status(201).json({
         success: true,
         message: 'Registration successful',
@@ -132,23 +132,23 @@ app.get('/api/patients', (req, res) => {
 
 app.get('/api/patients/:id', (req, res) => {
     const patient = mockPatients.find(p => p.id === req.params.id || p.medical_record_number === req.params.id);
-    
+
     if (!patient) {
         return res.status(404).json({ success: false, error: 'Patient not found' });
     }
-    
+
     res.json({ success: true, data: patient });
 });
 
 // Vitals Routes
 app.get('/api/vitals', (req, res) => {
     const { patientId } = req.query;
-    
+
     let vitals = mockVitals;
     if (patientId) {
         vitals = mockVitals.filter(v => v.patient_id === patientId);
     }
-    
+
     res.json({ success: true, data: vitals, count: vitals.length });
 });
 
@@ -166,9 +166,9 @@ app.get('/api/alerts', (req, res) => {
 app.post('/api/agents/query', (req, res) => {
     const { query } = req.body;
     console.log(`🤖 AI Query: "${query}"`);
-    
+
     const lowerQuery = query.toLowerCase();
-    
+
     // Check for vitals query with patient name
     if (lowerQuery.includes('vital')) {
         // Find the patient by name
@@ -180,7 +180,7 @@ app.post('/api/agents/query', (req, res) => {
         } else if (lowerQuery.includes('robert johnson')) {
             patient = mockPatients.find(p => p.first_name === 'Robert' && p.last_name === 'Johnson');
         }
-        
+
         if (patient) {
             const vitals = mockVitals.find(v => v.patient_id === patient.id);
             return res.json({
@@ -204,7 +204,7 @@ app.post('/api/agents/query', (req, res) => {
                 }
             });
         }
-        
+
         // Generic vitals response
         return res.json({
             success: true,
@@ -215,29 +215,29 @@ app.post('/api/agents/query', (req, res) => {
             }
         });
     }
-    
+
     // Patient search
     if (lowerQuery.includes('patient') || lowerQuery.includes('find') || lowerQuery.includes('search')) {
         let filteredPatients = mockPatients;
-        
+
         // Filter by condition
         if (lowerQuery.includes('diabetic')) {
-            filteredPatients = mockPatients.filter(p => 
+            filteredPatients = mockPatients.filter(p =>
                 p.chronic_conditions && p.chronic_conditions.includes('diabetic')
             );
         } else if (lowerQuery.includes('cardiac')) {
-            filteredPatients = mockPatients.filter(p => 
+            filteredPatients = mockPatients.filter(p =>
                 p.chronic_conditions && p.chronic_conditions.includes('cardiac')
             );
         }
-        
+
         // Filter by department
         if (lowerQuery.includes('icu')) {
             filteredPatients = filteredPatients.filter(p => p.department === 'ICU');
         } else if (lowerQuery.includes('er') || lowerQuery.includes('emergency')) {
             filteredPatients = filteredPatients.filter(p => p.department === 'ER');
         }
-        
+
         return res.json({
             success: true,
             agent: 'patient_retrieval_agent',
@@ -254,7 +254,7 @@ app.post('/api/agents/query', (req, res) => {
             }
         });
     }
-    
+
     // Alerts query
     if (lowerQuery.includes('alert') || lowerQuery.includes('critical') || lowerQuery.includes('emergency')) {
         return res.json({
@@ -276,7 +276,7 @@ app.post('/api/agents/query', (req, res) => {
             }
         });
     }
-    
+
     // Handoff report
     if (lowerQuery.includes('handoff') || lowerQuery.includes('shift') || lowerQuery.includes('report')) {
         return res.json({
@@ -284,22 +284,24 @@ app.post('/api/agents/query', (req, res) => {
             agent: 'shift_handoff_agent',
             intent: { intent: 'generate_handoff', confidence: 0.90 },
             data: {
-                shiftSummary: 'All patients stable. One critical alert for Sarah Smith (elevated BP). Medications administered on schedule.',
+                shiftSummary: 'All patients stable. Two critical alerts requiring attention. Medications administered on schedule. Total of 10 active patients across ICU and ER departments.',
                 patientCount: mockPatients.length,
                 patients: mockPatients.map(p => ({
                     name: `${p.first_name} ${p.last_name}`,
+                    room: p.room_number,
+                    department: p.department,
                     vitalsChecked: 3,
                     medicationsGiven: 2
                 }))
             }
         });
     }
-    
+
     // Meeting scheduling
     if (lowerQuery.includes('meeting') || lowerQuery.includes('schedule') || lowerQuery.includes('board')) {
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
-        
+
         return res.json({
             success: true,
             agent: 'meeting_coordinator_agent',
@@ -322,7 +324,7 @@ app.post('/api/agents/query', (req, res) => {
             }
         });
     }
-    
+
     // Default response
     res.json({
         success: true,

@@ -33,7 +33,7 @@ export default function Dashboard({ user }) {
       });
     } catch (error) {
       console.error('Error loading dashboard data:', error);
-      
+
       // DEMO MODE: Use mock data if backend is unreachable
       console.log('🎬 DEMO MODE: Using mock dashboard data');
       setStats({
@@ -48,10 +48,10 @@ export default function Dashboard({ user }) {
 
   const handleGenerateHandoff = async () => {
     // Navigate to AI Chat with the handoff query pre-filled
-    navigate('/ai-chat', { 
-      state: { 
+    navigate('/ai-chat', {
+      state: {
         autoQuery: 'Generate shift handoff report'
-      } 
+      }
     });
   };
 
@@ -96,6 +96,16 @@ export default function Dashboard({ user }) {
 
   return (
     <div className="space-y-6">
+      {/* Demo Mode Banner */}
+      <div className="bg-blue-500/10 border border-blue-500 text-blue-400 p-4 rounded-lg flex items-center">
+        <span className="text-2xl mr-3">🎯</span>
+        <div>
+          <strong className="font-semibold">DEMO MODE</strong>
+          <span className="mx-2">•</span>
+          <span>Using mock data for demonstration (no database required)</span>
+        </div>
+      </div>
+
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-white">
@@ -131,19 +141,19 @@ export default function Dashboard({ user }) {
       <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
         <h2 className="text-xl font-semibold text-white mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button 
+          <button
             onClick={() => navigate('/ai-chat')}
             className="btn-primary text-left justify-start"
           >
             🤖 Ask AI Agent
           </button>
-          <button 
+          <button
             onClick={() => navigate('/patients')}
             className="btn-secondary text-left justify-start"
           >
             👥 View All Patients
           </button>
-          <button 
+          <button
             onClick={handleGenerateHandoff}
             className="btn-secondary text-left justify-start"
           >
@@ -151,13 +161,13 @@ export default function Dashboard({ user }) {
           </button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-          <button 
+          <button
             onClick={() => navigate('/meetings')}
             className="btn-secondary text-left justify-start"
           >
             📅 Schedule Board Meeting
           </button>
-          <button 
+          <button
             onClick={() => navigate('/alerts')}
             className="btn-secondary text-left justify-start"
           >

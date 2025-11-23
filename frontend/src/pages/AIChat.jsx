@@ -27,7 +27,7 @@ export default function AIChat({ user }) {
     try {
       const response = await queryAgent(userMessage.content);
       const { agent, intent, data } = response.data;
-      
+
       let assistantMessage = '';
 
       if (data) {
@@ -56,8 +56,8 @@ export default function AIChat({ user }) {
         } else if (data.alerts) {
           assistantMessage = `**${data.count}** alerts:\n\n`;
           data.alerts.slice(0, 5).forEach(a => {
-            const emoji = a.severity === 'critical' ? '🚨' : 
-                         a.severity === 'high' ? '⚠️' : 'ℹ️';
+            const emoji = a.severity === 'critical' ? '🚨' :
+              a.severity === 'high' ? '⚠️' : 'ℹ️';
             assistantMessage += `${emoji} **${a.title}**\n`;
             assistantMessage += `   ${a.patient} - Room ${a.room}\n`;
             assistantMessage += `   ${a.message}\n\n`;
@@ -107,13 +107,23 @@ export default function AIChat({ user }) {
 
   const quickActions = [
     "Show me patient John Doe's vitals",
-    "Find diabetic patients in ICU", 
+    "Find diabetic patients in ICU",
     "Show critical alerts",
     "Generate shift handoff report"
   ];
 
   return (
     <div className="h-[calc(100vh-8rem)] flex flex-col">
+      {/* Demo Mode Banner */}
+      <div className="bg-blue-500/10 border border-blue-500 text-blue-400 p-3 rounded-lg mb-4 flex items-center text-sm">
+        <span className="text-lg mr-2">🎯</span>
+        <div>
+          <strong className="font-semibold">DEMO MODE</strong>
+          <span className="mx-2">•</span>
+          <span>Using mock AI responses for demonstration</span>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-white flex items-center">
@@ -130,13 +140,11 @@ export default function AIChat({ user }) {
         {messages.map((message, index) => (
           <div
             key={index}
-            className={`flex items-start space-x-3 ${
-              message.role === 'user' ? 'flex-row-reverse space-x-reverse' : ''
-            }`}
+            className={`flex items-start space-x-3 ${message.role === 'user' ? 'flex-row-reverse space-x-reverse' : ''
+              }`}
           >
-            <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-              message.role === 'user' ? 'bg-primary-600' : 'bg-purple-600'
-            }`}>
+            <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${message.role === 'user' ? 'bg-primary-600' : 'bg-purple-600'
+              }`}>
               {message.role === 'user' ? (
                 <User className="w-5 h-5 text-white" />
               ) : (
@@ -144,11 +152,10 @@ export default function AIChat({ user }) {
               )}
             </div>
             <div className={`flex-1 ${message.role === 'user' ? 'text-right' : ''}`}>
-              <div className={`inline-block max-w-3xl ${
-                message.role === 'user'
+              <div className={`inline-block max-w-3xl ${message.role === 'user'
                   ? 'bg-primary-600 text-white'
                   : 'bg-gray-700 text-gray-100'
-              } rounded-lg px-4 py-3 whitespace-pre-wrap`}>
+                } rounded-lg px-4 py-3 whitespace-pre-wrap`}>
                 {message.content}
               </div>
               {message.agent && (
