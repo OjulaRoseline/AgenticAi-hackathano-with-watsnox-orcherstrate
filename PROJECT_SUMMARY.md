@@ -1,14 +1,14 @@
 # 🏥 MediFlow AI - Project Summary
 
-## 🎯 Executive Summary
+##  Executive Summary
 
 **MediFlow AI** is a production-ready, intelligent hospital coordination system that leverages **IBM watsonx Orchestrate** to automate nurse workflows, patient management, and real-time decision-making. Built for the IBM watsonx Orchestrate Hackathon, this system demonstrates real-world AI agent orchestration with Redis caching, PostgreSQL database, and modern web technologies.
 
 ---
 
-## 🌟 Key Achievements
+##  Key Achievements
 
-### ✅ **Real Production Features**
+###  **Real Production Features**
 - **IBM watsonx Orchestrate Integration** - AI agents with intent analysis
 - **Redis Caching** - Sub-50ms patient data retrieval
 - **PostgreSQL Database** - HIPAA-compliant patient records with complex queries
